@@ -14,7 +14,6 @@ def round_to_step(price: float, step: float) -> float:
 def compute_price(
     trend_price: float,
     condition: str,
-    multiplier: float,
     condition_multipliers: dict,
     min_price: float,
     max_price: float | None,
@@ -25,7 +24,7 @@ def compute_price(
         raise ValueError("trend_price must be a positive number")
 
     condition_multiplier = condition_multipliers.get(condition.upper(), 1.0)
-    raw_price = trend_price * multiplier * condition_multiplier * (1 + adjustment_pct / 100)
+    raw_price = trend_price * condition_multiplier * (1 + adjustment_pct / 100)
 
     bounded = max(raw_price, min_price)
     if max_price is not None:

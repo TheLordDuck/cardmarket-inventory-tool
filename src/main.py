@@ -7,9 +7,9 @@ so selectors stay stable run to run:
     python -m src.main reprice [--dry-run] [--limit N] [--price-source trend|30d|7d|1d] [--adjustment-pct N]
         Clicks into each stock article's own product page, reads whichever of
         Cardmarket's own price stats --price-source selects (default: 7d,
-        the 7-day average), applies PRICE_MULTIPLIER (.env), an optional
-        --adjustment-pct (e.g. 5 or -5) and writes the result straight back
-        via the "Edit Article" modal.
+        the 7-day average), applies a per-condition multiplier and an
+        optional --adjustment-pct (e.g. 5 or -5), then writes the result
+        straight back via the "Edit Article" modal.
 
     python -m src.main export [--output path.csv]
         Scrapes your current stock into a CSV you can open and edit.
@@ -338,7 +338,6 @@ def cmd_reprice(args) -> None:
                 new_price = compute_price(
                     trend_price=row.trend_price,
                     condition=row.condition,
-                    multiplier=cfg.price_multiplier,
                     condition_multipliers=cfg.condition_multipliers,
                     min_price=cfg.min_price,
                     max_price=cfg.max_price,
@@ -580,8 +579,7 @@ def main() -> None:
 
     reprice_p = sub.add_parser(
         "reprice",
-        help="Auto-price every article from Cardmarket's own 7-day average price "
-             "(x PRICE_MULTIPLIER in .env) and apply it in the browser.",
+        help="Auto-price every article from Cardmarket's own average price and apply it in the browser.",
     )
     reprice_p.add_argument("--dry-run", action="store_true",
                             help="Only scrape stock and write the pricing report; don't change any prices.")
@@ -598,8 +596,8 @@ def main() -> None:
                             help="Which Cardmarket average to use as the base price: trend, 30d, 7d "
                                  "(default) or 1d.")
     reprice_p.add_argument("--adjustment-pct", type=_adjustment_pct, default=0.0,
-                            help="Extra +/- percentage applied on top of PRICE_MULTIPLIER and the condition "
-                                 "multiplier, e.g. 5 or -5 (also accepts a trailing %% and a leading +).")
+                            help="Extra +/- percentage applied on top of the condition multiplier, e.g. 5 "
+                                 "or -5 (also accepts a trailing %% and a leading +).")
     reprice_p.set_defaults(func=cmd_reprice)
 
     export_p = sub.add_parser(

@@ -78,10 +78,8 @@ class Config:
         default_factory=lambda: _env_int("LOGIN_WAIT_TIMEOUT_SECONDS", 300)
     )
 
-    # new_price = cardmarket_7_day_trend_price(eur) * PRICE_MULTIPLIER * condition_multiplier,
+    # new_price = source_price(eur) * condition_multiplier * (1 + adjustment_pct / 100),
     # then clamped to [MIN_PRICE, MAX_PRICE] and rounded to PRICE_STEP.
-    # 1.0 = list at exactly the 7-day average trend price, no discount.
-    price_multiplier: float = field(default_factory=lambda: _env_float("PRICE_MULTIPLIER", 1.0))
     min_price: float = field(default_factory=lambda: _env_float("MIN_PRICE", 0.05))
     max_price: float | None = field(default_factory=lambda: _env_float("MAX_PRICE", None))
     price_step: float = field(default_factory=lambda: _env_float("PRICE_STEP", 0.01))

@@ -159,6 +159,11 @@ SELECTORS: dict[str, list[str]] = {
     # hidden filter field and submits the page's own filter form -- a normal
     # in-page navigation triggered by a real click, not a scripted `.goto()`.
     "foil_price_toggle": ["label.switch-button:has(input[name='foilMode'])"],
+    # The toggle's underlying checkbox, read (never clicked directly, see
+    # `foil_price_toggle`'s comment) to check its *current* state before
+    # deciding whether to click -- see `get_trend_price` for why this
+    # matters beyond just foil rows.
+    "foil_price_toggle_input": ["input[name='foilMode']"],
     # Login form -- confirmed against a live (logged-out) dump on
     # 2026-09-16: it's `#header-login`, a desktop-header form (a duplicate,
     # differently-scoped one exists for the mobile offcanvas nav, hence
@@ -598,15 +603,26 @@ class CardmarketBrowserClient:
         price panel, or that specific stat, isn't present (e.g. a listing
         with no trade history yet shows "N/A").
 
-        If `foil` is True, first clicks the page's own "Only Foils?" toggle
-        (SELECTORS['foil_price_toggle'], a real click on a visible label,
-        which triggers the page's own filter-form resubmit -- not a scripted
-        `.goto()`) before reading the stats. This matters: confirmed live
-        that the price panel defaults to the NON-foil trend regardless of
-        which variant you arrived from, so skipping this for a foil row
-        silently returns the wrong (usually much lower) number. If the
-        toggle can't be found, falls back to the page's default number and
-        logs a warning rather than failing the whole row.
+        Before reading the stats, reconciles the page's own "Only Foils?"
+        toggle (SELECTORS['foil_price_toggle']) to match `foil`, clicking it
+        (a real click on a visible label, which triggers the page's own
+        filter-form resubmit -- not a scripted `.goto()`) only if its
+        *current* state (read from SELECTORS['foil_price_toggle_input'],
+        never clicked directly) doesn't already match.
+
+        This has to work in both directions, not just "click it on for foil
+        rows": confirmed live (2026-09-21) that the toggle is Cardmarket's
+        own session/cookie-scoped filter, not scoped to the single popup tab
+        it was clicked in -- so once any foil row in a run flips it on, it
+        stays on for every *later* tab opened in the same browser context,
+        silently foil-pricing non-foil rows too (e.g. a real 3.80 EUR
+        non-foil average read back as 0.25, the foil variant's number) if
+        nothing ever clicks it back off. Reading the checkbox's actual state
+        first also means a row that's already in the right state (most
+        common case: two non-foil rows in a row) needs no click at all. If
+        the toggle can't be found for a foil row, falls back to the page's
+        default (non-foil) number and logs a warning rather than failing the
+        whole row.
         """
         card_name = name_link.inner_text().strip()
         ctx = self.page.context
@@ -626,7 +642,9 @@ class CardmarketBrowserClient:
                     "Stopping now -- do not retry immediately."
                 )
 
-            if foil:
+            toggle_input = popup.locator(SELECTORS["foil_price_toggle_input"][0])
+            currently_foil_scoped = toggle_input.count() > 0 and toggle_input.first.is_checked()
+            if currently_foil_scoped != foil:
                 toggle = popup.locator(SELECTORS["foil_price_toggle"][0])
                 if toggle.count() > 0:
                     self._human_delay()
@@ -641,9 +659,12 @@ class CardmarketBrowserClient:
                         )
                 else:
                     logger.warning(
-                        "%r's product page has no SELECTORS['foil_price_toggle'] match -- using the "
-                        "page's default (non-foil) price trend, which is likely inaccurate for this foil "
-                        "row. Check its pricing report row and the product page manually.", card_name,
+                        "%r's product page has no SELECTORS['foil_price_toggle'] match -- reading whatever "
+                        "the page's \"Only Foils?\" filter is currently stuck at (%s) instead of this row's "
+                        "own %s state, which is likely inaccurate. Check its pricing report row and the "
+                        "product page manually.", card_name,
+                        "foil-scoped" if currently_foil_scoped else "non-foil-scoped",
+                        "foil" if foil else "non-foil",
                     )
 
             dl = popup.locator(SELECTORS["product_info_dl"][0]).first
