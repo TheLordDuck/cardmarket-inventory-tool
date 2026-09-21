@@ -1,0 +1,12 @@
+.env
+cache/
+logs/
+reports/*.csv
+reports/*.html
+reports/*.png
+.cardmarket-browser-profile/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
