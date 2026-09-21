@@ -11,18 +11,6 @@ load_dotenv()
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
-# Repricing discount applied per condition, relative to Cardmarket's own
-# near-mint trend price. Tune these to taste.
-DEFAULT_CONDITION_MULTIPLIERS = {
-    "MT": 1.05,   # Mint
-    "NM": 1.0,    # Near Mint
-    "EX": 0.9,    # Excellent
-    "GD": 0.75,   # Good
-    "LP": 0.6,    # Light Played
-    "PL": 0.45,   # Played
-    "PO": 0.3,    # Poor
-}
-
 
 def _env_float(name: str, default: float | None) -> float | None:
     val = os.getenv(name, "")
@@ -78,7 +66,7 @@ class Config:
         default_factory=lambda: _env_int("LOGIN_WAIT_TIMEOUT_SECONDS", 300)
     )
 
-    # new_price = source_price(eur) * condition_multiplier * (1 + adjustment_pct / 100),
+    # new_price = source_price(eur) * (1 + adjustment_pct / 100),
     # then clamped to [MIN_PRICE, MAX_PRICE] and rounded to PRICE_STEP.
     min_price: float = field(default_factory=lambda: _env_float("MIN_PRICE", 0.05))
     max_price: float | None = field(default_factory=lambda: _env_float("MAX_PRICE", None))
@@ -88,8 +76,6 @@ class Config:
     # can roll out repricing gradually instead of relisting your whole stock
     # at once. 0 = no limit.
     max_changes_per_run: int = field(default_factory=lambda: _env_int("MAX_CHANGES_PER_RUN", 0))
-
-    condition_multipliers: dict = field(default_factory=lambda: dict(DEFAULT_CONDITION_MULTIPLIERS))
 
     reports_dir: Path = field(default_factory=lambda: ROOT_DIR / "reports")
     logs_dir: Path = field(default_factory=lambda: ROOT_DIR / "logs")

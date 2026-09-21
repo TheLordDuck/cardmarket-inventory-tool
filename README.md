@@ -1,4 +1,4 @@
-# update-inventory
+# Cardmarket Inventory Tool
 
 Repricing tool for a Cardmarket (Magic: The Gathering) seller account.
 
@@ -82,10 +82,6 @@ already gitignored).
 | `MAX_PRICE` | *(none)* | Optional price ceiling. Leave blank for no cap. |
 | `PRICE_STEP` | `0.01` | Rounds the computed price to the nearest multiple of this. |
 | `MAX_CHANGES_PER_RUN` | `0` *(no limit)* | Caps how many rows get a changed price per run; overridable with `--limit`. |
-
-Per-condition multipliers (`MT`, `NM`, `EX`, `GD`, `LP`, `PL`, `PO`) aren't
-in `.env` — they live in `DEFAULT_CONDITION_MULTIPLIERS` in `src/config.py`
-if you want to tune them.
 
 ## Logging in
 
@@ -270,7 +266,7 @@ id_article,name,expansion,collector_number,foil,condition,language,quantity,pric
 **Pricing formula** (`reprice` only, `src/pricing.py`):
 
 ```
-new_price = source_price × condition_multiplier × (1 + adjustment_pct / 100)
+new_price = source_price × (1 + adjustment_pct / 100)
 ```
 
 ...then clamped to `[MIN_PRICE, MAX_PRICE]` and rounded to the nearest
@@ -278,13 +274,6 @@ new_price = source_price × condition_multiplier × (1 + adjustment_pct / 100)
 
 - `source_price` — whichever Cardmarket stat `--price-source` selected
   (`PRICE_SOURCE_LABELS` in `src/cardmarket/browser_client.py`).
-- `condition_multiplier` — from `DEFAULT_CONDITION_MULTIPLIERS` in
-  `src/config.py`:
-
-  | MT | NM | EX | GD | LP | PL | PO |
-  | --- | --- | --- | --- | --- | --- | --- |
-  | 1.05 | 1.0 | 0.9 | 0.75 | 0.6 | 0.45 | 0.3 |
-
 - `adjustment_pct` — `--adjustment-pct` (default `0`).
 
 **Other shared behavior:**

@@ -151,8 +151,8 @@ class App(tk.Tk):
         ttk.Label(
             frame,
             text="Reads each card's own Cardmarket price (pick trend/30-day/7-day/1-day\n"
-                 "average below), applies a per-condition multiplier and your own +/-\n"
-                 "adjustment %, and writes the result back.",
+                 "average below), applies your own +/- adjustment %, and writes the\n"
+                 "result back.",
             justify="left",
         ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
 
