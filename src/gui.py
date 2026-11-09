@@ -87,6 +87,15 @@ def build_import_args(input_path: str, dry_run: bool, debug: bool, inspect_modal
     return args
 
 
+def cli_command(args: list[str]) -> list[str]:
+    """The command line that runs one CLI command. In a packaged release
+    there's no Python interpreter to `-m` into -- the .exe itself runs the
+    CLI when given `--cli` (see app.py)."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "--cli", *args]
+    return [sys.executable, "-m", "src.main", *args]
+
+
 class App(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
@@ -317,7 +326,7 @@ class App(tk.Tk):
             messagebox.showwarning("Already running", "A command is already running -- wait for it to finish or cancel it.")
             return
 
-        cmd = [sys.executable, "-m", "src.main", *args]
+        cmd = cli_command(args)
         self._append_log(f"$ {' '.join(cmd)}\n")
         self.status_var.set(f"Running: {' '.join(args)}")
         self.cancel_button.config(state="normal")
@@ -330,6 +339,7 @@ class App(tk.Tk):
             self._proc = subprocess.Popen(
                 cmd, cwd=str(ROOT_DIR), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
             for line in self._proc.stdout:
                 self._log_queue.put(line)

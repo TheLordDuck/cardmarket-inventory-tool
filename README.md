@@ -17,6 +17,7 @@ of what language or page your account might otherwise default to.
 ## Contents
 
 - [Why it works this way](#why-it-works-this-way)
+- [Download (no install)](#download-no-install)
 - [Setup](#setup)
 - [Configuration](#configuration)
 - [Logging in](#logging-in)
@@ -51,6 +52,26 @@ This version instead:
 This isn't risk-free — Cloudflare's bot management watches behavior for the
 whole session — but it's the smallest risk surface available without
 official API access.
+
+## Download (no install)
+
+Windows users who just want to try it don't need Python: download
+`CardmarketInventoryTool-<version>-windows.zip` from the
+[Releases page](https://github.com/TheLordDuck/cardmarket-inventory-tool/releases),
+unzip it, and run `CardmarketInventoryTool.exe` (Google Chrome must be
+installed). Put your `.env` next to the `.exe`; `reports/`, `logs/` and the
+browser profile are created there too. See `README.txt` inside the zip.
+
+**Publishing a release:** push a version tag and GitHub Actions
+(`.github/workflows/release.yml`) runs the tests, builds the zip with
+`build.ps1` (PyInstaller) and attaches it to a new GitHub Release:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+To build the same zip locally: `.uild.ps1 v1.0.0` → `dist\`.
 
 ## Setup
 

@@ -2,14 +2,21 @@
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# In a packaged release (PyInstaller, see build.ps1) the code lives inside a
+# bundle, so .env, reports/, logs/ and the browser profile go next to the
+# .exe instead -- the folder the user unzipped.
+if getattr(sys, "frozen", False):
+    ROOT_DIR = Path(sys.executable).resolve().parent
+else:
+    ROOT_DIR = Path(__file__).resolve().parent.parent
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(ROOT_DIR / ".env")
 
 # Repricing discount applied per condition, relative to Cardmarket's own
 # near-mint trend price. Tune these to taste.

@@ -1,4 +1,6 @@
-from src.gui import build_export_args, build_import_args, build_login_args, build_reprice_args
+import sys
+
+from src.gui import cli_command, build_export_args, build_import_args, build_login_args, build_reprice_args
 
 
 def test_build_login_args_defaults_to_bare_command():
@@ -59,3 +61,12 @@ def test_build_import_args_includes_all_flags():
         "import", "--input", "reports\\in.csv", "--dry-run", "--debug-browser",
         "--inspect-modal", "--limit", "3",
     ]
+
+
+def test_cli_command_uses_python_module_from_source():
+    assert cli_command(["login"]) == [sys.executable, "-m", "src.main", "login"]
+
+
+def test_cli_command_reinvokes_exe_when_packaged(monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    assert cli_command(["export"]) == [sys.executable, "--cli", "export"]
