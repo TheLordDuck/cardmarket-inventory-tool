@@ -1,5 +1,5 @@
-"""Pure pricing calculation: trend price -> condition-adjusted, bounded,
-rounded listing price. No I/O, fully unit-testable.
+"""Pure pricing calculation: trend price -> adjusted, bounded, rounded
+listing price. No I/O, fully unit-testable.
 """
 from __future__ import annotations
 
@@ -13,8 +13,6 @@ def round_to_step(price: float, step: float) -> float:
 
 def compute_price(
     trend_price: float,
-    condition: str,
-    condition_multipliers: dict,
     min_price: float,
     max_price: float | None,
     step: float,
@@ -23,8 +21,7 @@ def compute_price(
     if trend_price is None or trend_price <= 0:
         raise ValueError("trend_price must be a positive number")
 
-    condition_multiplier = condition_multipliers.get(condition.upper(), 1.0)
-    raw_price = trend_price * condition_multiplier * (1 + adjustment_pct / 100)
+    raw_price = trend_price * (1 + adjustment_pct / 100)
 
     bounded = max(raw_price, min_price)
     if max_price is not None:
