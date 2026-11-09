@@ -297,11 +297,21 @@ class CardmarketBrowserClient:
                 "then log into Cardmarket in that window and try again."
             ) from exc
 
-        context = self._browser.contexts[0] if self._browser.contexts else self._browser.new_context()
-        idx = pick_cardmarket_tab_index([p.url for p in context.pages])
-        self.page = context.pages[idx] if idx is not None else (
-            context.pages[0] if context.pages else context.new_page()
-        )
+        # With several Chrome profiles open, each profile shows up as its own
+        # browser context -- look for a Cardmarket tab across all of them,
+        # not just the first one.
+        contexts = list(self._browser.contexts)
+        self.page = None
+        for context in contexts:
+            idx = pick_cardmarket_tab_index([p.url for p in context.pages])
+            if idx is not None:
+                self.page = context.pages[idx]
+                break
+        if self.page is None:
+            context = next((c for c in contexts if c.pages), None) or (
+                contexts[0] if contexts else self._browser.new_context()
+            )
+            self.page = context.pages[0] if context.pages else context.new_page()
         return self
 
     def __exit__(self, *exc) -> None:

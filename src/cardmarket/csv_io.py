@@ -3,10 +3,14 @@
 column yourself (e.g. in a spreadsheet), then import it back to apply only
 the prices you changed.
 
-Comma-delimited, UTF-8 with a BOM (so Excel opens it correctly without
-mangling accents), one row per stock article:
+Semicolon-delimited with comma decimals (what Excel expects on a Spanish/
+European locale -- with commas Excel dumps every row into a single cell),
+UTF-8 with a BOM (so Excel doesn't mangle accents), one row per stock article:
 
-    id_article,name,expansion,collector_number,foil,condition,language,quantity,price
+    id_article;name;expansion;collector_number;foil;condition;language;quantity;price
+
+On import, both `;` and `,` delimited files are accepted, and prices may use
+either `,` or `.` as the decimal separator.
 
 Only `price` is ever read back on import. `name`/`expansion`/`condition`/
 `foil`/`language` are there so you can see what you're pricing, and are also
@@ -27,6 +31,17 @@ FIELDNAMES = [
 ]
 
 
+DELIMITER = ";"
+
+
+def format_price(value: float) -> str:
+    return f"{value:.2f}".replace(".", ",")
+
+
+def _detect_delimiter(header_line: str) -> str:
+    return ";" if header_line.count(";") >= header_line.count(",") else ","
+
+
 class CsvFormatError(ValueError):
     pass
 
@@ -34,7 +49,7 @@ class CsvFormatError(ValueError):
 def write_stock_csv(path: Path, rows: list[BrowserRow]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES, delimiter=DELIMITER)
         writer.writeheader()
         for row in rows:
             writer.writerow({
@@ -46,12 +61,18 @@ def write_stock_csv(path: Path, rows: list[BrowserRow]) -> None:
                 "condition": row.condition,
                 "language": row.language,
                 "quantity": row.quantity,
-                "price": f"{row.current_price:.2f}",
+                "price": format_price(row.current_price),
             })
 
 
 def _safe_float(text: str) -> float:
-    cleaned = re.sub(r"[^\d,.\-]", "", text or "").replace(",", ".")
+    cleaned = re.sub(r"[^\d,.\-]", "", text or "")
+    if "," in cleaned and "." in cleaned:
+        # Thousands separator + decimal separator, e.g. 1.234,50 or 1,234.50:
+        # whichever comes last is the decimal one.
+        thousands = "." if cleaned.rfind(",") > cleaned.rfind(".") else ","
+        cleaned = cleaned.replace(thousands, "")
+    cleaned = cleaned.replace(",", ".")
     try:
         return float(cleaned)
     except ValueError:
@@ -69,7 +90,9 @@ def read_new_prices(path: Path) -> dict[str, float]:
         raise CsvFormatError(f"CSV not found: {path}")
 
     with open(path, "r", newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
+        delimiter = _detect_delimiter(f.readline())
+        f.seek(0)
+        reader = csv.DictReader(f, delimiter=delimiter)
         fieldnames = reader.fieldnames or []
         missing = [c for c in FIELDNAMES if c not in fieldnames]
         if missing:

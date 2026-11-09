@@ -259,11 +259,16 @@ instead of trusting the automatic pricing formula.
 
 `import` with no `--input` picks the newest `reports/stock_export_*.csv`
 automatically. The CSV format is this tool's own (see
-`src/cardmarket/csv_io.py`): comma-delimited, UTF-8 with BOM —
+`src/cardmarket/csv_io.py`): semicolon-delimited with comma decimals
+(`12,50`), UTF-8 with BOM, so Excel on a Spanish/European locale splits it
+into columns on double-click —
 
 ```
-id_article,name,expansion,collector_number,foil,condition,language,quantity,price
+id_article;name;expansion;collector_number;foil;condition;language;quantity;price
 ```
+
+`import` also accepts older comma-delimited exports, and prices with either
+`,` or `.` as the decimal separator.
 
 ## Shared behavior
 

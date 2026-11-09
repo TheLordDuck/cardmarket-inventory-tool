@@ -75,11 +75,15 @@ def _write_report(cfg, report_rows) -> Path:
     path = cfg.reports_dir / f"pricing_{datetime.now():%Y%m%d_%H%M%S}.csv"
     fieldnames = ["id_article", "id_product", "name", "expansion", "collector_number", "foil",
                   "condition", "language", "quantity", "current_price", "new_price", "matched", "note"]
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=csv_io.DELIMITER)
         writer.writeheader()
         for row in report_rows:
-            writer.writerow({k: row.get(k, "") for k in fieldnames})
+            out = {k: row.get(k, "") for k in fieldnames}
+            for k in ("current_price", "new_price"):
+                if isinstance(out[k], (int, float)):
+                    out[k] = csv_io.format_price(out[k])
+            writer.writerow(out)
     return path
 
 
@@ -140,6 +144,12 @@ def _ensure_chrome_running(cfg, logger) -> subprocess.Popen | None:
         cfg.chrome_executable_path,
         f"--remote-debugging-port={port}",
         f"--user-data-dir={cfg.cardmarket_browser_profile_dir}",
+        # Always open the same profile directly, so Chrome never stops at
+        # the "Who's using Chrome?" profile picker when the dedicated
+        # user-data-dir holds more than one profile.
+        "--profile-directory=Default",
+        "--no-first-run",
+        "--no-default-browser-check",
         # Cardmarket's header login form is hidden by CSS (Bootstrap
         # `d-none d-lg-inline-flex`) below its "lg" breakpoint (~992px) --
         # confirmed to cause a stuck/failed auto-login when Chrome opens
