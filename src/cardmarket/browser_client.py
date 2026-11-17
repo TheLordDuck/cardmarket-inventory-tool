@@ -117,8 +117,19 @@ SELECTORS: dict[str, list[str]] = {
     "name": [".col-seller a", ".col-seller .name a", "a.article-link"],
     "expansion": [".expansion-symbol"],
     "condition": [".article-condition .badge", ".article-condition"],
-    "language": [".product-attributes .icon[aria-label]:not(.st_SpecialIcon):not(.article-condition)"],
-    "foil_marker": [".st_SpecialIcon"],
+    "language": [".product-attributes .icon[aria-label]:not(.st_SpecialIcon):not(.article-condition):not([aria-label='Foil'])"],
+    # Confirmed live 2026-11-16: Cardmarket dropped the `.st_SpecialIcon`
+    # class -- the foil marker is now a plain
+    # `<span class="icon mr-1" aria-label="Foil" data-bs-original-title="Foil">`
+    # inside `.product-attributes`. Matching on the old class silently marked
+    # every foil row as non-foil (so the "Only Foils?" toggle was never
+    # clicked and foils got non-foil prices). The old class stays as a
+    # last-resort fallback.
+    "foil_marker": [
+        ".product-attributes [aria-label='Foil']",
+        ".product-attributes [data-bs-original-title='Foil']",
+        ".st_SpecialIcon",
+    ],
     "price_text": [".col-offer .price-container .color-primary", ".col-offer .price-container span"],
     "quantity_text": [".col-offer .amount-container .item-count", "input.amount-input"],
     "edit_link": ["a[data-modal*='EditArticleModal']"],
@@ -634,6 +645,8 @@ class CardmarketBrowserClient:
         default (non-foil) number and logs a warning rather than failing the
         whole row.
         """
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
         card_name = name_link.inner_text().strip()
         ctx = self.page.context
         popup = None
@@ -658,7 +671,16 @@ class CardmarketBrowserClient:
                 toggle = popup.locator(SELECTORS["foil_price_toggle"][0])
                 if toggle.count() > 0:
                     self._human_delay()
-                    toggle.first.click()
+                    # The click resubmits the page's filter form, i.e. a real
+                    # navigation. A bare wait_for_load_state() right after the
+                    # click returns immediately (the *old* document is already
+                    # loaded), so the stats were read from the stale non-foil
+                    # page -- wait for the navigation itself instead.
+                    try:
+                        with popup.expect_navigation(wait_until="domcontentloaded", timeout=15000):
+                            toggle.first.click()
+                    except PlaywrightTimeoutError:
+                        logger.debug("No navigation seen after foil toggle click for %r", card_name)
                     popup.wait_for_load_state("domcontentloaded")
                     self._human_delay()
                     if is_blocked(popup.content(), popup.title()):
@@ -667,6 +689,19 @@ class CardmarketBrowserClient:
                             "Cloudflare block/challenge detected after toggling a product page to its "
                             "foil price. Stopping now -- do not retry immediately."
                         )
+                    # Never price a row from the wrong variant: if the toggle
+                    # still doesn't match this row, skip it (reported as "no
+                    # price available") rather than repricing it wrongly.
+                    toggle_input = popup.locator(SELECTORS["foil_price_toggle_input"][0])
+                    now_foil_scoped = toggle_input.count() > 0 and toggle_input.first.is_checked()
+                    if now_foil_scoped != foil:
+                        logger.warning(
+                            "%r: the \"Only Foils?\" filter is still %s after clicking it -- skipping this "
+                            "row instead of pricing it from the wrong variant.", card_name,
+                            "on" if now_foil_scoped else "off",
+                        )
+                        self._dump_debug("foil_toggle_mismatch")
+                        return None
                 else:
                     logger.warning(
                         "%r's product page has no SELECTORS['foil_price_toggle'] match -- reading whatever "
